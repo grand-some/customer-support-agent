@@ -2,6 +2,12 @@
 
 from agents import Agent, RunContextWrapper
 from models import RestaurantContext
+from my_agents.guardrails import restaurant_output_guardrail
+
+
+from agents import Agent, RunContextWrapper
+from models import RestaurantContext
+from my_agents.guardrails import restaurant_output_guardrail
 
 
 MENU_TEXT = """
@@ -44,16 +50,6 @@ DESSERTS
 - Fruit Plate
   Ingredients: seasonal fruits
   Allergens: none
-
-DRINKS
-- Sparkling Water
-- Orange Juice
-- House Wine
-
-IMPORTANT POLICY
-- We can explain ingredients and common allergens.
-- We cannot guarantee zero cross-contamination in the kitchen.
-- If the guest has a severe allergy, advise them to inform staff before ordering.
 """
 
 
@@ -65,19 +61,12 @@ def dynamic_menu_agent_instructions(
 You are a Menu Specialist for a restaurant, helping {wrapper.context.customer_name}.
 
 YOUR ROLE:
-- Answer questions about menu items, ingredients, allergens, dietary suitability, and recommendations.
-- Be clear, warm, and practical.
-- If asked about allergies, mention the known allergens and also mention that cross-contamination cannot be guaranteed.
-- If asked for vegetarian, vegan, or gluten-free options, recommend only matching items.
-- If asked for suggestions, give 2-4 relevant menu options.
+- Answer menu, ingredients, allergen, and dietary questions.
+- Be warm, concise, and careful.
+- Mention cross-contamination cannot be guaranteed for severe allergies.
 
 MENU INFORMATION:
 {MENU_TEXT}
-
-RESPONSE STYLE:
-- Keep answers concise but useful.
-- For allergy questions, be explicit and careful.
-- If something is not on the menu, say so clearly.
 """
 
 
@@ -85,4 +74,5 @@ menu_agent = Agent(
     name="Menu Agent",
     handoff_description="Handles menu, ingredients, allergens, and dietary questions.",
     instructions=dynamic_menu_agent_instructions,
+    output_guardrails=[restaurant_output_guardrail],
 )

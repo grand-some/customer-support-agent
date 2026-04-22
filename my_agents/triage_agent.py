@@ -1,5 +1,3 @@
-"""Triage agent for routing customer requests."""
-
 import streamlit as st
 from agents import Agent, RunContextWrapper, handoff
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
@@ -9,6 +7,11 @@ from models import RestaurantContext, HandoffData
 from my_agents.menu_agent import menu_agent
 from my_agents.order_agent import order_agent
 from my_agents.reservation_agent import reservation_agent
+from my_agents.complaints_agent import complaints_agent
+from my_agents.guardrails import (
+    restaurant_input_guardrail,
+    restaurant_output_guardrail,
+)
 
 
 def dynamic_triage_agent_instructions(
@@ -25,60 +28,55 @@ The guest's dietary preference is {wrapper.context.dietary_preference or "not pr
 
 YOUR ROLE:
 - Understand what the guest wants.
-- Route the guest to the right specialist agent.
+- Route the guest to the right specialist.
 - Before handoff, briefly explain who you are connecting them to.
-- Be friendly and concise.
+- Be warm, concise, and professional.
 
 ROUTING GUIDE:
 
 1) MENU AGENT
-Route here when the guest asks about:
+For:
 - menu items
 - ingredients
 - vegetarian / vegan / gluten-free options
 - allergens
 - recommendations
 
-Examples:
-- "Do you have vegetarian dishes?"
-- "What's in the salmon?"
-- "Does this contain dairy?"
-
 2) ORDER AGENT
-Route here when the guest wants to:
-- place an order
-- add/remove items
-- confirm an order
-- ask for takeaway ordering help
-
-Examples:
-- "I'd like to order two pizzas."
-- "Can I add a juice?"
-- "Please confirm my order."
+For:
+- placing an order
+- modifying an order
+- confirming an order
 
 3) RESERVATION AGENT
-Route here when the guest wants to:
-- book a table
-- change a reservation
-- ask about party size and booking details
+For:
+- booking a table
+- changing reservation details
+- reservation questions
+
+4) COMPLAINTS AGENT
+For:
+- bad food experience
+- rude staff
+- long wait complaints
+- wrong order complaints
+- refund/discount/manager request
+- dissatisfaction with service
 
 Examples:
-- "I want to reserve a table."
-- "Book a table for 4 tomorrow at 7."
-- "Can I make a dinner reservation?"
-
-HANDOFF BEHAVIOR:
-- If the user is asking about reservations, say something like:
-  "예약 담당에게 연결해 드릴게요."
-- If the user is asking about menu questions, say:
-  "메뉴 전문가에게 연결해 드릴게요."
-- If the user is placing an order, say:
-  "주문 담당에게 연결해 드릴게요."
+- "음식이 너무 별로였어"
+- "직원이 너무 불친절했어"
+- "환불 받고 싶어"
+- "서비스가 엉망이었어"
 
 IMPORTANT:
-- Do not answer detailed specialist questions yourself if a specialist should handle them.
-- First explain the handoff briefly, then perform the handoff.
+- If the user is off-topic, do not help with the off-topic request.
 - If the request is ambiguous, ask one short clarifying question.
+- If routing:
+  - Menu -> "메뉴 전문가에게 연결해 드릴게요."
+  - Order -> "주문 담당에게 연결해 드릴게요."
+  - Reservation -> "예약 담당에게 연결해 드릴게요."
+  - Complaints -> "불편을 드려 죄송합니다. 불만 처리 담당에게 연결해 드릴게요."
 """
 
 
@@ -111,9 +109,12 @@ def make_handoff(agent: Agent[RestaurantContext]):
 triage_agent = Agent(
     name="Triage Agent",
     instructions=dynamic_triage_agent_instructions,
+    input_guardrails=[restaurant_input_guardrail],
+    output_guardrails=[restaurant_output_guardrail],
     handoffs=[
         make_handoff(menu_agent),
         make_handoff(order_agent),
         make_handoff(reservation_agent),
+        make_handoff(complaints_agent),
     ],
 )
